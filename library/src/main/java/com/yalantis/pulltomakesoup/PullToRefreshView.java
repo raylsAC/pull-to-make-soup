@@ -256,7 +256,6 @@ public class PullToRefreshView extends ViewGroup {
                         (tensionSlingshotPercent / 4), 2)) * 2f;
                 float extraMove = (slingshotDist) * tensionPercent / 2;
                 int targetY = (int) ((slingshotDist * boundedDragPercent) + extraMove);
-
                 mSoupRefreshView.setPercent(mCurrentDragPercent, true);//根据下拉的偏移量于最大下拉距离的比，设置刷新动画的变化程度
                 setTargetOffsetTop(targetY - mCurrentOffsetTop, true);//移动target和刷新动画
                 break;
