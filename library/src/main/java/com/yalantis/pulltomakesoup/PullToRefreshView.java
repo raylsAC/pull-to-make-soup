@@ -25,6 +25,8 @@ import java.security.InvalidParameterException;
 /**
  * Created by Alexey on 28.01.2016.
  */
+
+// mSoupRefreshView.setPercent(1f, true);设置拖动时刷新动画的变化
 public class PullToRefreshView extends ViewGroup {
 
     private static final int STYLE_SOUP = 0;
@@ -37,7 +39,7 @@ public class PullToRefreshView extends ViewGroup {
     private View mTarget;
     private final ImageView mRefreshView;
     private final Interpolator mDecelerateInterpolator;
-    private final int mTouchSlop;
+    private final int mTouchSlop;//触发事件移动的最小距离
     private final int mTotalDragDistance;
     private SoupRefreshView mSoupRefreshView;
     private float mCurrentDragPercent;
@@ -46,19 +48,20 @@ public class PullToRefreshView extends ViewGroup {
     private int mActivePointerId;
     private boolean mIsBeingDragged;
     private float mInitialMotionY;
-    private int mFrom;
+    private int mFromOffSetTop;
     private float mFromDragPercent;
     private final Animation mAnimateToCorrectPosition = new Animation() {
         @Override
         public void applyTransformation(float interpolatedTime, Transformation t) {
             int targetTop;
             int endTarget = mTotalDragDistance;
-            targetTop = (mFrom + (int) ((endTarget - mFrom) * interpolatedTime));
+            targetTop = (mFromOffSetTop + (int) ((endTarget - mFromOffSetTop) * interpolatedTime));
             int offset = targetTop - mTarget.getTop();
 
             mCurrentDragPercent = mFromDragPercent - (mFromDragPercent - 1.0f) * interpolatedTime;
             mSoupRefreshView.setPercent(mCurrentDragPercent, false);
 
+            //设置target的偏移，比如下拉的距离太大，会弹回来
             setTargetOffsetTop(offset, false /* requires update */);
         }
     };
@@ -100,17 +103,18 @@ public class PullToRefreshView extends ViewGroup {
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.RefreshView);
         final int type = a.getInteger(R.styleable.RefreshView_type, STYLE_SOUP);
         a.recycle();
-        mDecelerateInterpolator = new DecelerateInterpolator(DECELERATE_INTERPOLATION_FACTOR);
-        mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        mDecelerateInterpolator = new DecelerateInterpolator(DECELERATE_INTERPOLATION_FACTOR);//先快后慢
+        mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();//触发事件移动的最小距离
         mTotalDragDistance = Utils.convertDpToPixel(context, DRAG_MAX_DISTANCE);
-        mRefreshView = new ImageView(context);
-        setRefreshStyle(type);
-        addView(mRefreshView);
-        setWillNotDraw(false);
-        ViewCompat.setChildrenDrawingOrderEnabled(this, true);
+        mRefreshView = new ImageView(context);//初始化mRefreshView
+        setRefreshStyle(type);//设置下拉刷新的样式，并给mRefreshView设置图片
+        addView(mRefreshView);//添加mRefreshView到ViewGroup
+        setWillNotDraw(false);//为了onDraw()的执行
+        ViewCompat.setChildrenDrawingOrderEnabled(this, true);//低版本兼容
 
     }
 
+    //设置下拉刷新的样式，并给mRefreshView设置图片
     private void setRefreshStyle(int type) {
         setRefreshing(false);
         switch (type) {
@@ -124,6 +128,7 @@ public class PullToRefreshView extends ViewGroup {
         mRefreshView.setImageDrawable(mSoupRefreshView);
     }
 
+    //获取最大的下拉距离
     public int getTotalDragDistance() {
         return mTotalDragDistance;
     }
@@ -132,6 +137,7 @@ public class PullToRefreshView extends ViewGroup {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
+        //获取target
         ensureTarget();
         if (mTarget == null)
             return;
@@ -142,6 +148,7 @@ public class PullToRefreshView extends ViewGroup {
         mRefreshView.measure(widthMeasureSpec, heightMeasureSpec);
     }
 
+    //获取target（除了刷新动画的第一个子view，这里少了一个break），target通常为一个列表或scrollview
     private void ensureTarget() {
         if (mTarget != null)
             return;
@@ -161,24 +168,27 @@ public class PullToRefreshView extends ViewGroup {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        //如果未使能或者target还没有滑到顶部或者正在刷新，则不拦截事件
         if (!isEnabled() || canChildScrollUp() || mRefreshing) {
             return false;
         }
 
-        final int action = MotionEventCompat.getActionMasked(ev);
+        final int action = MotionEventCompat.getActionMasked(ev);//多点触控
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
+                //此时不拦截事件
                 setTargetOffsetTop(0, true);
-                mActivePointerId = MotionEventCompat.getPointerId(ev, 0);
+                mActivePointerId = MotionEventCompat.getPointerId(ev, 0);//获取index为0的触点id
                 mIsBeingDragged = false;
-                final float initialMotionY = getMotionEventY(ev, mActivePointerId);
+                final float initialMotionY = getMotionEventY(ev, mActivePointerId);//获取对应pointId触点的y
                 if (initialMotionY == -1) {
                     return false;
                 }
-                mInitialMotionY = initialMotionY;
+                mInitialMotionY = initialMotionY;//设置最初的y值
                 break;
             case MotionEvent.ACTION_MOVE:
+                //如果触点消失，则不拦截
                 if (mActivePointerId == INVALID_POINTER) {
                     return false;
                 }
@@ -186,17 +196,23 @@ public class PullToRefreshView extends ViewGroup {
                 if (y == -1) {
                     return false;
                 }
-                final float yDiff = y - mInitialMotionY;
+                final float yDiff = y - mInitialMotionY;//计算移动时产生的偏移量
+                //如果偏移量大于触发下拉刷新事件的最小距离且还没开启刷新
                 if (yDiff > mTouchSlop && !mIsBeingDragged) {
+                    //此时拦截事件
                     mIsBeingDragged = true;
                 }
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
+                //此时不拦截事件
+                //撤销所有触点
                 mIsBeingDragged = false;
                 mActivePointerId = INVALID_POINTER;
                 break;
             case MotionEventCompat.ACTION_POINTER_UP:
+                //多点触控时，当某一触点抬起时
+                //此时拦截事件
                 onSecondaryPointerUp(ev);
                 break;
         }
@@ -207,6 +223,9 @@ public class PullToRefreshView extends ViewGroup {
     @Override
     public boolean onTouchEvent(@NonNull MotionEvent ev) {
 
+        //不拦截
+        //mIsBeingDragged--true（拦截），此时已经发生了位移，最后一个触点为活跃触点
+        //mIsBeingDragged--false（不拦截），此时已经还没发生位移，第一个触点为活跃触点
         if (!mIsBeingDragged) {
             return super.onTouchEvent(ev);
         }
@@ -222,11 +241,12 @@ public class PullToRefreshView extends ViewGroup {
 
                 final float y = MotionEventCompat.getY(ev, pointerIndex);
                 final float yDiff = y - mInitialMotionY;
-                final float scrollTop = yDiff * DRAG_RATE;
+                final float scrollTop = yDiff * DRAG_RATE;//减一半
                 mCurrentDragPercent = scrollTop / mTotalDragDistance;
                 if (mCurrentDragPercent < 0) {
                     return false;
                 }
+                //计算适合的target偏移量
                 float boundedDragPercent = Math.min(1f, Math.abs(mCurrentDragPercent));
                 float extraOS = Math.abs(scrollTop) - mTotalDragDistance;
                 float slingshotDist = mTotalDragDistance;
@@ -237,11 +257,12 @@ public class PullToRefreshView extends ViewGroup {
                 float extraMove = (slingshotDist) * tensionPercent / 2;
                 int targetY = (int) ((slingshotDist * boundedDragPercent) + extraMove);
 
-                mSoupRefreshView.setPercent(mCurrentDragPercent, true);
-                setTargetOffsetTop(targetY - mCurrentOffsetTop, true);
+                mSoupRefreshView.setPercent(mCurrentDragPercent, true);//根据下拉的偏移量于最大下拉距离的比，设置刷新动画的变化程度
+                setTargetOffsetTop(targetY - mCurrentOffsetTop, true);//移动target和刷新动画
                 break;
             }
             case MotionEventCompat.ACTION_POINTER_DOWN:
+                //发生位移后，当有新的触点加入时，转换活跃触点的id
                 final int index = MotionEventCompat.getActionIndex(ev);
                 mActivePointerId = MotionEventCompat.getPointerId(ev, index);
                 break;
@@ -258,7 +279,7 @@ public class PullToRefreshView extends ViewGroup {
                 final float y = MotionEventCompat.getY(ev, pointerIndex);
                 final float overScrollTop = (y - mInitialMotionY) * DRAG_RATE;
                 mIsBeingDragged = false;
-                if (overScrollTop > mTotalDragDistance) {
+                if (overScrollTop > mTotalDragDistance) {//下拉的距离达到最大的下拉距离时，开启刷新模式
                     setRefreshing(true, true);
                 } else {
                     mRefreshing = false;
@@ -272,8 +293,9 @@ public class PullToRefreshView extends ViewGroup {
         return true;
     }
 
+    //暂停刷新后的动画，回到顶部
     private void animateOffsetToStartPosition() {
-        mFrom = mCurrentOffsetTop;
+        mFromOffSetTop = mCurrentOffsetTop;
         mFromDragPercent = mCurrentDragPercent;
         long animationDuration = Math.abs((long) (MAX_OFFSET_ANIMATION_DURATION * mFromDragPercent));
 
@@ -285,8 +307,9 @@ public class PullToRefreshView extends ViewGroup {
         mRefreshView.startAnimation(mAnimateToStartPosition);
     }
 
+    //开始刷新后的动画，例如target要弹到合适的位置
     private void animateOffsetToCorrectPosition() {
-        mFrom = mCurrentOffsetTop;
+        mFromOffSetTop = mCurrentOffsetTop;
         mFromDragPercent = mCurrentDragPercent;
 
         mAnimateToCorrectPosition.reset();
@@ -296,10 +319,10 @@ public class PullToRefreshView extends ViewGroup {
         mRefreshView.startAnimation(mAnimateToCorrectPosition);
 
         if (mRefreshing) {
-            mSoupRefreshView.start();
+            mSoupRefreshView.start();//刷新动画开始
             if (mNotify) {
                 if (mListener != null) {
-                    mListener.onRefresh();
+                    mListener.onRefresh();//刷新时回调
                 }
             }
         } else {
@@ -311,12 +334,12 @@ public class PullToRefreshView extends ViewGroup {
     }
 
     private void moveToStart(float interpolatedTime) {
-        int targetTop = mFrom - (int) (mFrom * interpolatedTime);
+        int targetTop = mFromOffSetTop - (int) (mFromOffSetTop * interpolatedTime);
         float targetPercent = mFromDragPercent * (1.0f - interpolatedTime);
         int offset = targetTop - mTarget.getTop();
 
         mCurrentDragPercent = targetPercent;
-        mSoupRefreshView.setPercent(mCurrentDragPercent, true);
+        mSoupRefreshView.setPercent(mCurrentDragPercent, true);//要重绘，收起的动画
         mTarget.setPadding(mTargetPaddingLeft, mTargetPaddingTop, mTargetPaddingRight, mTargetPaddingBottom + targetTop);
         setTargetOffsetTop(offset, false);
     }
@@ -330,10 +353,10 @@ public class PullToRefreshView extends ViewGroup {
     private void setRefreshing(boolean refreshing, final boolean notify) {
         if (mRefreshing != refreshing) {
             mNotify = notify;
-            ensureTarget();
+            ensureTarget();//
             mRefreshing = refreshing;
             if (mRefreshing) {
-                mSoupRefreshView.setPercent(1f, true);
+                mSoupRefreshView.setPercent(1f, true);//设置刷新动画全部显示
                 animateOffsetToCorrectPosition();
             } else {
                 animateOffsetToStartPosition();
@@ -341,6 +364,9 @@ public class PullToRefreshView extends ViewGroup {
         }
     }
 
+    //多点触控时，当其中一个触点抬起时，先判断是否为当前活跃的触点
+    //否则不处理
+    //是则重置index，如果index为0，则置为1，不为0，置为1
     private void onSecondaryPointerUp(MotionEvent ev) {
         final int pointerIndex = MotionEventCompat.getActionIndex(ev);
         final int pointerId = MotionEventCompat.getPointerId(ev, pointerIndex);
@@ -358,8 +384,9 @@ public class PullToRefreshView extends ViewGroup {
         return MotionEventCompat.getY(ev, index);
     }
 
+    //位移
     private void setTargetOffsetTop(int offset, boolean requiresUpdate) {
-        mTarget.offsetTopAndBottom(offset);
+        mTarget.offsetTopAndBottom(offset);//正数向下移动，负数向上移动
         mSoupRefreshView.offsetTopAndBottom(offset);
         mCurrentOffsetTop = mTarget.getTop();
         if (requiresUpdate && android.os.Build.VERSION.SDK_INT < 11) {
@@ -367,6 +394,7 @@ public class PullToRefreshView extends ViewGroup {
         }
     }
 
+    //判断mTarget是否滑动到顶，返回true就是还没到顶
     private boolean canChildScrollUp() {
         if (android.os.Build.VERSION.SDK_INT < 14) {
             if (mTarget instanceof AbsListView) {
@@ -375,9 +403,12 @@ public class PullToRefreshView extends ViewGroup {
                         && (absListView.getFirstVisiblePosition() > 0 || absListView.getChildAt(0)
                         .getTop() < absListView.getPaddingTop());
             } else {
+                //getScrollY() > 0,上滑
+                //getScrollY() < 0,下拉
                 return mTarget.getScrollY() > 0;
             }
         } else {
+            //当direction>0时，判断是否可以下滑，当direction<0时，判断是否可以上滑
             return ViewCompat.canScrollVertically(mTarget, -1);
         }
     }

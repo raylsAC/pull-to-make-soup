@@ -38,9 +38,17 @@ public class MainActivity extends AppCompatActivity {
 
         int[] icons = {
                 R.drawable.burger,
+                R.drawable.pizza,
+                R.drawable.burger,
+                R.drawable.pizza,
+                R.drawable.burger,
                 R.drawable.pizza};
 
         int[] colors = {
+                R.drawable.rounded_background_burger,
+                R.drawable.rounded_background_pizza,
+                R.drawable.rounded_background_burger,
+                R.drawable.rounded_background_pizza,
                 R.drawable.rounded_background_burger,
                 R.drawable.rounded_background_pizza,
                 R.drawable.rounded_background_burger,

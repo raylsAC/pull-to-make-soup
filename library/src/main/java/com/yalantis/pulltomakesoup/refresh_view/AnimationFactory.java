@@ -31,6 +31,7 @@ public class AnimationFactory {
      */
     Animation getBounce(Animation animation) {
 
+        //回弹效果
         configureAnimation(animation
                 , BOUNCE_INTERPOLATOR
                 , ANIMATION_DURATION
@@ -49,6 +50,7 @@ public class AnimationFactory {
      */
     Animation getScale(Animation animation) {
 
+        //加速效果
         configureAnimation(animation
                 , ACCELERATE_INTERPOLATOR
                 , ANIMATION_SCALE_DURATION

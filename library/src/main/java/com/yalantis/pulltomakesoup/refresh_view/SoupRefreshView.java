@@ -167,7 +167,7 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
         mParent = layout;
         mMatrix = new Matrix();
         mContext = layout.getContext();
-        setupAnimations();
+        setupAnimations();//初始化动画
         layout.post(new Runnable() {
             @Override
             public void run() {
@@ -183,6 +183,7 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
         mScreenHeight = mContext.getResources().getDisplayMetrics().heightPixels;
 
 
+        //把资源文件转换为位图
         createBitmaps();
 
         mPanTopOffset = Utils.convertDpToFloatPixel(mContext, 60);
@@ -256,6 +257,7 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
         mBubble6TopOffset = Utils.convertDpToFloatPixel(mContext, 144);
         mBubble6LeftOffset = (mScreenWidth / 100) * 50;
 
+        //缩放中心点
         mCirclePivotX = Utils.convertDpToPixel(mContext, 100);
         mCirclePivotY = Utils.convertDpToPixel(mContext, 40);
 
@@ -268,21 +270,21 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
 
     private void createBitmaps() {
 
-        mPan = CreateBitmapFactory.getBitmapFromImage(R.drawable.pan, mContext);
-        mCircle = CreateBitmapFactory.getBitmapFromImage(R.drawable.circle, mContext);
-        mPotato = CreateBitmapFactory.getBitmapFromImage(R.drawable.potato, mContext);
-        mCarrot = CreateBitmapFactory.getBitmapFromImage(R.drawable.carrot, mContext);
-        mRightPea = CreateBitmapFactory.getBitmapFromImage(R.drawable.pea, mContext);
-        mLeftPea = CreateBitmapFactory.getBitmapFromImage(R.drawable.pea, mContext);
-        mCover = CreateBitmapFactory.getBitmapFromImage(R.drawable.pan_cover, mContext);
-        mWater = CreateBitmapFactory.getBitmapFromImage(R.drawable.water, mContext);
-        mShadow = CreateBitmapFactory.getBitmapFromImage(R.drawable.shadow, mContext);
-        mFlame1 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame1, mContext);
-        mFlame2 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame2, mContext);
-        mFlame3 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame3, mContext);
-        mFlame4 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame4, mContext);
-        mFlame5 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame5, mContext);
-        mBubble = CreateBitmapFactory.getBitmapFromDrawable(R.drawable.bubble, mContext);
+        mPan = CreateBitmapFactory.getBitmapFromImage(R.drawable.pan, mContext);//锅
+        mCircle = CreateBitmapFactory.getBitmapFromImage(R.drawable.circle, mContext);//背景的黄色实体圆
+        mPotato = CreateBitmapFactory.getBitmapFromImage(R.drawable.potato, mContext);//马铃薯
+        mCarrot = CreateBitmapFactory.getBitmapFromImage(R.drawable.carrot, mContext);//萝卜
+        mRightPea = CreateBitmapFactory.getBitmapFromImage(R.drawable.pea, mContext);//右边葱花
+        mLeftPea = CreateBitmapFactory.getBitmapFromImage(R.drawable.pea, mContext);//左边葱花
+        mCover = CreateBitmapFactory.getBitmapFromImage(R.drawable.pan_cover, mContext);//锅盖
+        mWater = CreateBitmapFactory.getBitmapFromImage(R.drawable.water, mContext);//水
+        mShadow = CreateBitmapFactory.getBitmapFromImage(R.drawable.shadow, mContext);//锅的阴影
+        mFlame1 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame1, mContext);//火
+        mFlame2 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame2, mContext);//火
+        mFlame3 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame3, mContext);//火
+        mFlame4 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame4, mContext);//火
+        mFlame5 = CreateBitmapFactory.getBitmapFromImage(R.drawable.flame5, mContext);//火
+        mBubble = CreateBitmapFactory.getBitmapFromDrawable(R.drawable.bubble, mContext);//圆环，气泡
 
     }
 
@@ -298,12 +300,13 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
 
     @Override
     public void start() {
-        mBounceAnimation.reset();
-        mScaleAnimation.reset();
-        mFlameScaleAnimation.reset();
-        mFlameBurnAnimation.reset();
-        mBubble1Animation.reset();
-        mCoverAnimation.reset();
+        mBounceAnimation.reset();//先执行回弹效果
+        mScaleAnimation.reset();//水缩放动画
+        mFlameScaleAnimation.reset();//火缩放动画
+
+        mFlameBurnAnimation.reset();//火透明度变化的动画
+        mBubble1Animation.reset();//气泡上升动画
+        mCoverAnimation.reset();//锅盖动画
         isRefreshing = true;
 
         final AnimationSet animatorSet = new AnimationSet(false);
@@ -315,6 +318,7 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
         animatorSet.addAnimation(mBubble5Animation);
         animatorSet.addAnimation(mBubble6Animation);
         animatorSet.addAnimation(mCoverAnimation);
+
         mParent.startAnimation(mBounceAnimation);
 
         mBounceAnimation.setAnimationListener(new Animation.AnimationListener() {
@@ -378,7 +382,7 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
         resetOriginals();
     }
 
-
+    //设置拖动时刷新动画的变化
     public void setPercent(float percent, boolean invalidate) {
         setPercent(percent);
         if (invalidate)   mBounce = setVariable(percent);
@@ -396,10 +400,10 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
 
         final int saveCount = canvas.save();
 
-        canvas.translate(0, 0);
-        canvas.clipRect(0, -mParent.getTotalDragDistance(), mScreenWidth, mParent.getTotalDragDistance());
+        canvas.translate(0, 0);//从原点开始，，屏幕左上方
+        canvas.clipRect(0, -mParent.getTotalDragDistance(), mScreenWidth, mParent.getTotalDragDistance());//绘制出动画显示区域
         drawCircle(canvas);
-        drawShadow(canvas);
+        drawShadow(canvas);//动画开始播放的时候才生效
         drawPan(canvas);
         drawPotato(canvas);
         drawCarrot(canvas);
@@ -513,6 +517,8 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
         float offsetX = (mScreenWidth / 2) - (mCircle.getWidth() / 2);
         float offsetY = -(mScreenHeight / 100);
 
+        //缩放且位移（一开始用左乘效果是一样的）
+//        matrix.preScale(dragPercent, dragPercent, mCirclePivotX, mCirclePivotY);
         matrix.postScale(dragPercent, dragPercent, mCirclePivotX, mCirclePivotY);
         matrix.postTranslate(offsetX, offsetY);
 
@@ -656,7 +662,7 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
 
         float dragPercent = Math.min(1f, Math.abs(mPercent));
         final float offsetX = (mScreenWidth / 2) - (mShadow.getWidth() / 2) + Utils.convertDpToFloatPixel(mContext, 17f);
-        if (isCoverDropped) {
+        if (isCoverDropped) {//锅盖掉下来的时候画阴影，，动画开始播放的时候才生效，滑动时阴影不出现
             final float offsetY = mPanTopOffset * dragPercent;
             matrix.postTranslate(offsetX, offsetY);
             Paint paint = new Paint();
@@ -721,7 +727,7 @@ public class SoupRefreshView extends Drawable implements Animatable, Drawable.Ca
         mBounceAnimation = animationFactory.getBounce(new Animation() {
             @Override
             public void applyTransformation(float interpolatedTime, Transformation t) {
-                t.setTransformationType(Transformation.TYPE_BOTH);
+                t.setTransformationType(Transformation.TYPE_BOTH);//TYPE_ALPHA | TYPE_MATRIX;矩阵变换和渐变一起
                 mBounce = setVariable(interpolatedTime);
             }
 
